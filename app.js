@@ -1,13 +1,12 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const date = require(__dirname + "/date.js");
+import express from "express";
+import  {getDate, getDay} from "./date.js";
 
 const app = express();
 
 const items = ["Buy Food", "Cook Food", "Eat Food"];
 const workItems = [];
 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
 
 //Setup Static Folder
 app.use(express.static("public"));
@@ -17,7 +16,7 @@ app.set("view engine", "ejs");
 
 app.get("/", function (req, res) {
   
-    const day = date.getDate();
+    const day = getDate();
 
   res.render("list", { listTitle: day, newListItems: items });
 });
