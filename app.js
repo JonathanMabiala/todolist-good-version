@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import _ from 'lodash';
 
 const app = express();
 
@@ -26,17 +27,24 @@ const itemsSchema = mongoose.Schema({
 const Item = mongoose.model("item", itemsSchema);
 
 const item1 = new Item({
-  name: "Buy food",
+  name: "Welcome to your todoList.",
 });
 
 const item2 = new Item({
-  name: "Wash the car",
+  name: "Hit the + button to add a new Item.",
 });
 const item3 = new Item({
-  name: "Make Breakfast",
+  name: "<-- Hot this to delete an item.",
 });
 
 const defaultItems = [item1, item2, item3];
+
+const listSchema = {
+  name: String,
+  items: [itemsSchema],
+};
+
+const List = mongoose.model("List", listSchema);
 
 //let res = await Item.insertMany(defaultItems);
 
@@ -55,21 +63,70 @@ app.get("/", function (req, res) {
 
 app.post("/", function (req, res) {
   const itemName = req.body.newItem;
+  const listName = req.body.list;
 
   const newItem = new Item({
     name: itemName,
   });
-  newItem.save().then(console.log("Item saved successfully!"));
-  res.redirect("/");
+
+  if (listName === "Today") {
+    newItem.save().then(console.log("Item saved successfully!"));
+    res.redirect("/");
+  } else {
+    List.findOne({ name: listName }).then((foundList) => {
+      foundList.items.push(newItem);
+      foundList.save().then(console.log("Element inserted and updated."));
+      res.redirect(`/${listName}`);
+    });
+  }
 });
 
 app.post("/delete", (req, res) => {
-  if (req.body.checkbox !== undefined && req.body.checkbox !== null) {
-    Item.findByIdAndRemove(req.body.checkbox).then(
-      console.log("Item", req.body.checkbox, "was deleted successfully.")
-    );
-    res.redirect("/");
+  const checkedItemId = req.body.checkbox;
+  const listName = req.body.listName;
+  if (checkedItemId !== undefined && checkedItemId !== null) {
+    if (listName === "Today") {
+      Item.findByIdAndRemove(checkedItemId).then(
+        console.log("Item", checkedItemId, "was deleted successfully.")
+      );
+      res.redirect("/");
+    } else {
+      List.findOneAndUpdate(
+        { name: listName },
+        { $pull: { items: { _id: checkedItemId } } }
+      ).then(
+        console.log(
+          "Custom list item",
+          checkedItemId,
+          "was deleted successfully."
+        )
+      );
+      res.redirect(`/${listName}`);
+    }
   }
+});
+
+app.get("/:customListName", (req, res) => {
+  const customListName = _.capitalize(req.params.customListName);
+
+  List.findOne({ name: customListName }).then((foundList) => {
+    if (!foundList) {
+      //create a new list
+      const list = new List({
+        name: customListName,
+        items: defaultItems,
+      });
+      list.save().then(console.log("Item(s) saved."));
+      res.redirect(`/${customListName}`);
+    } else {
+      //Show an existing list
+      res.render("list", {
+        listTitle: foundList.name,
+        newListItems: foundList.items,
+      });
+    }
+  });
+  //
 });
 
 app.get("/work", function (req, res) {
